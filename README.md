@@ -123,8 +123,8 @@ public class HelloController {
 <!DOCTYPE HTML>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-	<title>Hello</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <title>Hello</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 </head>
 <body>
 <p th:text="'안녕하세요. ' + ${data}" >안녕하세요. 손님</p>
@@ -139,9 +139,9 @@ public class HelloController {
 ```html
 <!DOCTYPE HTML>
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-	<title>Hello</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<head> 
+  <title>Hello</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 </head>
 <body>
 Hello
