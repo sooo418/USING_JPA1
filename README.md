@@ -970,3 +970,188 @@ org.springframework.boot.orm.jpa.hibernamte.SpringPhysicalNamingStrategy`
 
 > 그림에서는 controller, service, repository, db 계층간의 폐쇄적인 계층을 가지지만 controller에서 respository를 호출할 수 있는 개방적인 계층 구조로 개발할 것이다.
 >
+
+# 회원 도메인 개발
+
+**구현 기능**
+
+---
+
+- 회원 등록
+- 회원 목록 조회
+
+**순서**
+
+---
+
+- 회원 엔티티 코드 다시 보기
+- 회원 리포지토리 개발
+- 회원 서비스 개발
+- 회원 기능 테스트
+
+## 회원 리포지토리 개발
+
+```java
+@Repository
+public class MemberRepository {
+
+    @PersistenceContext
+    private EntityManager em;
+
+//    @PersistenceUnit
+//    private EntityManagerFactory emf;
+
+    public void save(Member member) {
+        em.persist(member);
+    }
+
+    public Member findOne(Long id) {
+        return em.find(Member.class, id);
+    }
+
+    public List<Member> findAll() {
+        return em.createQuery("select m from Member m", Member.class)
+                .getResultList();
+    }
+
+    public List<Member> findByName(String name) {
+        return em.createQuery("select m from Member m where m.name = :name", Member.class)
+                .setParameter("name", name)
+                .getResultList();
+    }
+}
+```
+
+- `@PersistenceContext`애노테이션을 사용해 `EntityManager`를 주입받음
+- `EntityManagerFactory`를 주입받고 싶다면 `@PersistenceUnit`을 사용하여 주입받으면 된다.
+- `@Repository`애노테이션은 `@Component`애노테이션 하위에 있기 때문에 컴포넌트 스캔시 `@Repository`클래스도 빈으로 등록된다.
+
+*Repository*
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Component
+public @interface Repository {
+
+    /**
+     * The value may indicate a suggestion for a logical component name,
+     * to be turned into a Spring bean in case of an autodetected component.
+     * @return the suggested component name, if any (or empty String otherwise)
+     */
+    @AliasFor(annotation = Component.class)
+    String value() default "";
+
+}
+```
+
+## 회원 서비스 개발
+
+```java
+@Service
+@Transactional(readOnly = true)
+@RequiredArgsConstructor
+public class MemberService {
+
+    private final MemberRepository memberRepository;
+
+    /**
+     * 회원 가입
+     */
+    @Transactional
+    public Long join(Member member) {
+
+        validateDuplicateMember(member); //중복 회원 검증
+        memberRepository.save(member);
+        return member.getId();
+    }
+
+    private void validateDuplicateMember(Member member) {
+        List<Member> findMembers = memberRepository.findByName(member.getName());
+        if (!findMembers.isEmpty()) {
+            throw new IllegalStateException("이미 존재하는 회원입니다.");
+        }
+    }
+
+    /**
+     * 회원 전체 조회
+     */
+    public List<Member> findMembers() {
+        return memberRepository.findAll();
+    }
+
+    /**
+     * 회원 단건 조회
+     */
+    public Member findOne(Long memberId) {
+        return memberRepository.findOne(memberId);
+    }
+
+}
+```
+
+- `@Service`애노테이션도 `@Repository`와 마찬가지로 빈 등록됨
+- 트랜잭션 또는 영속성 컨텍스트를 사용할 때 `@Transactional`애노테이션을 사용한다.
+  - 데이터의 변경이 없는 메서드는 읽기 전용으로 `@Transactional(readOnly = true)`를 사용하여야 한다.
+    - 영속성 컨텍스트를 플러시하지 않으므로 약간의 성능 향상에 도움이 됨.
+    - 데이터베이스 드라이버가 지원하면 DB에서 성능 향상
+- 자동 주입으로 `@Autowired`애노테이션을 사용
+  - 이전에는 필드 Injection을 많이 사용했지만 요새는 생성자 Injection을 많이 사용한다.
+  - 생성자가 하나면 생략 가능
+
+*생성자 주입*
+
+```java
+public class MemberService {
+
+    private final MemberRepository memberRepository;
+    
+    @Autowired //생략 가능
+    public MemberService(MemberRepository memberRepository) {
+        this.memberRepository = memberRepository;
+    }
+    
+    ...
+}
+```
+
+- 생성자 주입 방식을 권장
+- 변경 불가능한 안전한 객체 생성 가능
+- 생성자가 하나면, `@Autowired`를 생략할 수 있다.
+- `final`키워드를 추가하면 컴파일 시점에 `memberRepository`를 설정하지 않는 오류를 체크할 수 있다.(보통 기본 생성자를 추가할 때 발견)
+
+*lombok*
+
+```java
+@RequiredArgsConstructor
+public class MemberService {
+    private final MemberRepository memberRepository;
+    ...
+}
+```
+
+- `@RequiredArgsConstructor`
+  - `final`이 붙거나 `@NotNull`이 붙은 필드의 생성자를 자동으로 생성해줌
+
+**스프링 데이터 JPA를 사용하면 `EntityManger`도 주입이 가능**
+
+---
+
+*Repository*
+
+```java
+@Repository
+@RequiredArgsConstructor
+public class MemberRepository {
+
+    private final EntityManager em;
+    
+    ...
+}
+```
+
+- 이런식으로 `@PersistenceContext`애노테이션을 사용하지 않고 생성자 주입으로 주입을 받을 수 있다.
+
+> 참고: 실무에서는 검증 로직이 있어도 멀티 쓰레드 상황을 고려해서 회원 테이블의 회원명 컬럼에 유니크 제약 조건을 추가하는 것이 안전하다.
+>
