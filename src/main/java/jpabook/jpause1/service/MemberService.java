@@ -1,4 +1,4 @@
-package jpabook.service;
+package jpabook.jpause1.service;
 
 import jpabook.jpause1.domain.Member;
 import jpabook.jpause1.repository.MemberRepository;
