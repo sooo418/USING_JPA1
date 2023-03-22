@@ -2205,6 +2205,7 @@ public class MemberForm {
 ```
 
 - 필드 `name`을 필수 값으로 받기 위해 `@NotEmpty`애노테이션을 사용
+- 스프링 부트 2.3 버전 이상을 사용할 경우 build.gradle파일에 implementation 'org.springframework.boot:spring-boot-starter-validation'추가해주어야 한다.
 
 **회원 등록 컨트롤러**
 
