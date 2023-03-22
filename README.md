@@ -1943,3 +1943,452 @@ public List<Order> findAllByCriteria(OrderSearch orderSearch) {
   결국 다른 대안이 필요하다.
 - 많은 개발자가 비슷한 고민을 했지만, 가장 멋진 해결책은 Querydsl이 제시했다.
   Querydsl 소개장에서 간단히 언급할거고 지금은 이대로 진행하자.
+
+# 웹 계층 개발
+
+**목차**
+
+---
+
+- 홈 화면과 레이아웃
+- 회원 등록
+- 회원 목록 조회
+- 상품 등록
+- 상품 목록
+- 상품 수정
+- 변경 감지와 병함(merge)
+- 상품 주문
+- 상품 목록 검색, 취소
+
+## 홈 화면과 레이아웃
+
+**홈 컨트롤러 등록**
+
+*HomeController*
+
+```java
+package jpabook.jpause1.controller;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+@Controller
+@Slf4j
+public class HomeController {
+
+    @RequestMapping("/")
+    public String home() {
+        log.info("home controller");
+        return "home";
+    }
+}
+```
+
+**스프링 부트 타임리프 기본 설정**
+
+```yaml
+spring:
+	thymeleaf:
+		prefix: classpath:/templates/
+		suffix: .html
+```
+
+- 스프링 타임리프 viewName 매핑
+  - `resources:templates/` + {ViewName} + `.html`
+  - `resources:templates/home.html`
+- 반환한 문자 (`home`)과 스프링 부트 설정 `prefix`, `suffix`정보를 사용해서 렌더링할 뷰(`html`)을 찾는다.
+
+**타임리프 템플릿 등록**
+
+*home.html*
+
+```html
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header">
+    <title>Hello</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+<div class="container">
+    <div th:replace="fragments/bodyHeader :: bodyHeader" />
+    <div class="jumbotron">
+        <h1>HELLO SHOP</h1>
+        <p class="lead">회원 기능</p>
+        <p>
+            <a class="btn btn-lg btn-secondary" href="/members/new">회원 가입</a>
+            <a class="btn btn-lg btn-secondary" href="/members">회원 목록</a>
+        </p>
+        <p class="lead">상품 기능</p>
+        <p>
+            <a class="btn btn-lg btn-dark" href="/items/new">상품 등록</a>
+            <a class="btn btn-lg btn-dark" href="/items">상품 목록</a>
+        </p>
+        <p class="lead">주문 기능</p>
+        <p>
+            <a class="btn btn-lg btn-info" href="/order">상품 주문</a>
+            <a class="btn btn-lg btn-info" href="/orders">주문 내역</a>
+        </p>
+    </div>
+    <div th:replace="fragments/footer :: footer" />
+</div> <!-- /container -->
+</body>
+</html>
+```
+
+*fragments/header.html*
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="header">
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrinkto-fit=no">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css" integrity="sha384-
+ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+          crossorigin="anonymous">
+    <!-- Custom styles for this template -->
+    <link href="/css/jumbotron-narrow.css" rel="stylesheet">
+    <title>Hello, world!</title>
+</head>
+```
+
+*fragments/bodyHeader.html*
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="header" th:fragment="bodyHeader">
+    <ul class="nav nav-pills pull-right">
+        <li><a href="/">Home</a></li>
+    </ul>
+    <a href="/"><h3 class="text-muted">HELLO SHOP</h3></a>
+</div>
+```
+
+*fragments/footer.html*
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="footer" th:fragment="footer">
+  <p>&copy; Hello Shop V2</p>
+</div>
+```
+
+> 참고: **Hierarchical-style layouts**
+예제에서는 뷰 템플릿을 최대한 간단하게 설명하려고, `header`, `footer`같은 템플릿 파일을 반복해서 포함한다. 다음 링크의 Hierarchical-style layouts을 참고하면 이런 부분도 중복을 제거할 수 있다.
+[https://www.thymeleaf.org/doc/articles/layouts.html](https://www.thymeleaf.org/doc/articles/layouts.html)
+>
+
+> 참고: **뷰 템플릿 변경사항을 서버 재시작 없이 즉시 반영하기**
+1. spring-boot-devtools 추가
+2. html 파일 build → Recompile
+
+**view 리소스 등록**
+
+이쁜 디자인을 위해 부트스트랩을 사용 (v4.3.1)([https://getbootstrap.com/](https://getbootstrap.com/))
+
+- `resources/static` 하위에 `css`, `js` 추가
+- `resources/static/css/jumbotron-narrow.css` 추가
+
+*jumbotron-narrow.css*
+
+```css
+/* Space out content a bit */
+body {
+ padding-top: 20px;
+ padding-bottom: 20px;
+}
+/* Everything but the jumbotron gets side spacing for mobile first views */
+.header,
+.marketing,
+.footer {
+ padding-left: 15px;
+ padding-right: 15px;
+}
+/* Custom page header */
+.header {
+ border-bottom: 1px solid #e5e5e5;
+}
+/* Make the masthead heading the same height as the navigation */
+.header h3 {
+ margin-top: 0;
+ margin-bottom: 0;
+ line-height: 40px;
+ padding-bottom: 19px;
+}
+/* Custom page footer */
+.footer {
+ padding-top: 19px;
+ color: #777;
+ border-top: 1px solid #e5e5e5;
+}
+/* Customize container */
+@media (min-width: 768px) {
+ .container {
+ max-width: 730px;
+ }
+}
+.container-narrow > hr {
+ margin: 30px 0;
+}
+/* Main marketing message and sign up button */
+.jumbotron {
+ text-align: center;
+ border-bottom: 1px solid #e5e5e5;
+}
+.jumbotron .btn {
+ font-size: 21px;
+ padding: 14px 24px;
+}
+/* Supporting marketing content */
+.marketing {
+ margin: 40px 0;
+}
+.marketing p + h4 {
+ margin-top: 28px;
+}
+/* Responsive: Portrait tablets and up */
+@media screen and (min-width: 768px) {
+ /* Remove the padding we set earlier */
+ .header,
+ .marketing,
+ .footer {
+ padding-left: 0;
+ padding-right: 0;
+ }
+ /* Space out the masthead */
+ .header {
+ margin-bottom: 30px;
+ }
+ /* Remove the bottom border on the jumbotron for visual effect */
+ .jumbotron {
+ border-bottom: 0;
+ }
+}
+```
+
+*결과 화면*
+
+![](img/img_15.png)
+
+## 회원 등록
+
+- 폼 객체를 사용해서 화면 계층과 서비스 계층을 명확히 분리한다.
+
+**회원 등록 폼 객체**
+
+*MemberForm*
+
+```java
+package jpabook.jpause1.controller;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import javax.validation.constraints.NotEmpty;
+
+@Getter @Setter
+public class MemberForm {
+
+    @NotEmpty(message = "회원 이름은 필수 입니다")
+    private String name;
+
+    private String city;
+    private String street;
+    private String zipcode;
+}
+```
+
+- 필드 `name`을 필수 값으로 받기 위해 `@NotEmpty`애노테이션을 사용
+
+**회원 등록 컨트롤러**
+
+*MemberController*
+
+```java
+package jpabook.jpause1.controller;
+
+import jpabook.jpause1.domain.Address;
+import jpabook.jpause1.domain.Member;
+import jpabook.jpause1.service.MemberService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+
+import javax.validation.Valid;
+
+@Controller
+@RequiredArgsConstructor
+public class MemberController {
+
+    private final MemberService memberService;
+
+    @GetMapping("/members/new")
+    public String createForm(Model model) {
+        model.addAttribute("memberForm", new MemberForm());
+        return "members/createMemberForm";
+    }
+
+    @PostMapping("/members/new")
+    public String create(@Valid MemberForm form, BindingResult result) {
+
+        if (result.hasErrors()) {
+            return "members/createMemberForm";
+        }
+
+        Address address = new Address(form.getCity(), form.getStreet(), form.getZipcode());
+
+        Member member = new Member();
+        member.setName(form.getName());
+        member.setAddress(address);
+
+        memberService.join(member);
+
+        return "redirect:/";
+    }
+}
+```
+
+- 화면 이동을 위한 Get방식의 `/members/new`
+- 회원 등록을 위한 Post방식의 `/members/new`
+  - 파라미터로 `BindingResult`를 확인할 수 있는데 `org.springframework.validation`에서 제공하는 클래스로 `@Valid {Object} objName` 다음으로 `BindingResult`가 있을 경우 objName에서의 오류가 `BindingResult`에 담겨서 해당 메서드가 실행된다.
+
+**회원 등록 폼 화면**
+
+*members/createMemberForm.html*
+
+```html
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header" />
+<style>
+    .fieldError {
+        border-color: #bd2130;
+    }
+</style>
+<body>
+<div class="container">
+    <div th:replace="fragments/bodyHeader :: bodyHeader"/>
+    <form role="form" action="/members/new" th:object="${memberForm}"
+          method="post">
+        <div class="form-group">
+            <label th:for="name">이름</label>
+            <input type="text" th:field="*{name}" class="form-control"
+                   placeholder="이름을 입력하세요"
+                   th:class="${#fields.hasErrors('name')}? 'form-control fieldError' : 'form-control'">
+            <p th:if="${#fields.hasErrors('name')}" th:errors="*{name}">Incorrect date</p>
+        </div>
+        <div class="form-group">
+            <label th:for="city">도시</label>
+            <input type="text" th:field="*{city}" class="form-control"
+                   placeholder="도시를 입력하세요">
+        </div>
+        <div class="form-group">
+            <label th:for="street">거리</label>
+            <input type="text" th:field="*{street}" class="form-control"
+                   placeholder="거리를 입력하세요">
+        </div>
+        <div class="form-group">
+            <label th:for="zipcode">우편번호</label>
+            <input type="text" th:field="*{zipcode}" class="form-control"
+                   placeholder="우편번호를 입력하세요">
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    <br/>
+    <div th:replace="fragments/footer :: footer" />
+</div> <!-- /container -->
+</body>
+</html>
+```
+
+- `th:field="*{name}"` → `id=“name” name=”name”`을 간편하게 해주는 코드라고 보면 된다.
+- `th:class="${#fields.hasErrors('name')}? 'form-control field Error' : 'form-control'"`은 `MemberForm`객체의 `name`필드에 오류가 있으면 해당 `input`태그의 `class`를 ‘form-control field Error’를 갖고 오류가 없으면 ‘form-control’을 갖도록 하는 코드이다.
+- `th:if="${#fields.hasErrors('name')}" th:errors="*{name}"` 해당 코드는 `name`필드에 오류가 있으면 `name`필드에 대해서 오류 메시지를 뽑아서 출력을 해주는 코드이다.
+
+*결과 화면*
+
+![](img/img_16.png)
+
+## 회원 목록 조회
+
+**회원 목록 컨트롤러 추가**
+
+*MemberController*
+
+```java
+@Controller
+@RequiredArgsConstructor
+public class MemberController {
+
+    ...
+    
+    //추가
+    @GetMapping("/members")
+    public String list(Model model) {
+        List<Member> members = memberService.findMembers();
+        model.addAttribute("members", members);
+        return "members/memberList";
+    }
+}
+```
+
+- 조회한 상품을 뷰에 전달하기 위해 스프링 MVC가 제공하는 모델(`Model`) 객체에 보관
+- 실행할 뷰 이름을 반환
+
+**회원 목록 뷰**
+
+*members/MemberList.html*
+
+```html
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header" />
+<body>
+<div class="container">
+  <div th:replace="fragments/bodyHeader :: bodyHeader" />
+  <div>
+    <table class="table table-striped">
+      <thead>
+      <tr>
+        <th>#</th>
+        <th>이름</th>
+        <th>도시</th>
+        <th>주소</th>
+        <th>우편번호</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="member : ${members}">
+        <td th:text="${member.id}"></td>
+        <td th:text="${member.name}"></td>
+        <td th:text="${member.address?.city}"></td>
+        <td th:text="${member.address?.street}"></td>
+        <td th:text="${member.address?.zipcode}"></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+  <div th:replace="fragments/footer :: footer" />
+</div> <!-- /container -->
+</body>
+</html>
+```
+
+> 참고: 타임리프에서 ?를 사용하면 null을 무시한다.
+즉 null일 경우 빈칸으로 출력
+>
+
+> 참고: 폼 객체 VS 앤티티 직접 사용
+요구 사항이 정말 단순할 때는 폼 객체(`MemberForm`)없이 앤티티(`Member`)를 직접 등록과 수정 화면에서 사용해도 된다. 하지만 화면 요구사항이 복잡해지기 시작하면, 앤티티에 화면을 처리하기 위한 기능이 점점 증가한다. 결과적으로 앤티티는 점점 화면에 종속적으로 변하고, 이렇게 화면 기능 때문에 지저분해진 앤티티는 결국 유지보수하기 어려워진다.
+
+실무에서 **앤티티는 핵심 비즈니스 로직만 가지고 있고, 화면을 위한 로직은 없어야 한다.** 화면이나 API에 맞는 폼 객체나 DTO를 사용하자. 그래서 화면이나 API 요구사항을 이것들로 처리하고, 앤티티는 최대한 순수하게 유지하자.
+>
