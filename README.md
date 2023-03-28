@@ -2392,4 +2392,187 @@ public class MemberController {
 요구 사항이 정말 단순할 때는 폼 객체(`MemberForm`)없이 앤티티(`Member`)를 직접 등록과 수정 화면에서 사용해도 된다. 하지만 화면 요구사항이 복잡해지기 시작하면, 앤티티에 화면을 처리하기 위한 기능이 점점 증가한다. 결과적으로 앤티티는 점점 화면에 종속적으로 변하고, 이렇게 화면 기능 때문에 지저분해진 앤티티는 결국 유지보수하기 어려워진다.
 
 실무에서 **앤티티는 핵심 비즈니스 로직만 가지고 있고, 화면을 위한 로직은 없어야 한다.** 화면이나 API에 맞는 폼 객체나 DTO를 사용하자. 그래서 화면이나 API 요구사항을 이것들로 처리하고, 앤티티는 최대한 순수하게 유지하자.
->
+
+## 상품 등록
+
+*BookForm*
+
+```java
+package jpabook.jpause1.controller;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter @Setter
+public class BookForm {
+
+    private Long id;
+
+    private String name;
+    private int price;
+    private int stockQuantity;
+
+    private String author;
+    private String isbn;
+}
+```
+
+*ItemController*
+
+```java
+package jpabook.jpause1.controller;
+
+import jpabook.jpause1.domain.item.Book;
+import jpabook.jpause1.domain.item.Item;
+import jpabook.jpause1.service.ItemService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+
+import java.util.List;
+
+@Controller
+@RequiredArgsConstructor
+public class ItemController {
+
+    private final ItemService itemService;
+
+    @GetMapping(value = "/items/new")
+    public String createForm(Model model) {
+        model.addAttribute("form", new BookForm());
+        return "items/createItemForm";
+    }
+
+    @PostMapping(value = "/items/new")
+    public String create(BookForm form) {
+        Book book = new Book();
+        book.setName(form.getName());
+        book.setPrice(form.getPrice());
+        book.setStockQuantity(form.getStockQuantity());
+        book.setAuthor(form.getAuthor());
+        book.setIsbn(form.getIsbn());
+        itemService.saveItem(book);
+        return "redirect:/";
+    }
+}
+```
+
+- `GetMapping`에서 화면 요청
+- `PostMapping`에서 `상품 등록` 요청
+
+*items/createItemForm.html*
+
+```html
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header" />
+<body>
+<div class="container">
+    <div th:replace="fragments/bodyHeader :: bodyHeader"/>
+    <form th:action="@{/items/new}" th:object="${form}" method="post">
+        <div class="form-group">
+            <label th:for="name">상품명</label>
+            <input type="text" th:field="*{name}" class="form-control"
+                   placeholder="이름을 입력하세요">
+        </div>
+        <div class="form-group">
+            <label th:for="price">가격</label>
+            <input type="number" th:field="*{price}" class="form-control"
+                   placeholder="가격을 입력하세요">
+        </div>
+        <div class="form-group">
+            <label th:for="stockQuantity">수량</label>
+            <input type="number" th:field="*{stockQuantity}" class="form-control" placeholder="수량을 입력하세요">
+        </div>
+        <div class="form-group">
+            <label th:for="author">저자</label>
+            <input type="text" th:field="*{author}" class="form-control"
+                   placeholder="저자를 입력하세요">
+        </div>
+        <div class="form-group">
+            <label th:for="isbn">ISBN</label>
+            <input type="text" th:field="*{isbn}" class="form-control"
+                   placeholder="ISBN을 입력하세요">
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    <br/>
+    <div th:replace="fragments/footer :: footer" />
+</div> <!-- /container -->
+</body>
+</html>
+```
+
+## 상품 목록
+
+*ItemController*
+
+```java
+@Controller
+@RequiredArgsConstructor
+public class ItemController {
+
+    ...
+
+    @GetMapping("/items")
+    public String list(Model model) {
+        List<Item> items = itemService.findItems();
+        model.addAttribute("items", items);
+        return "items/itemList";
+    }
+}
+```
+
+*items/itemList.html*
+
+```html
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header" />
+<body>
+<div class="container">
+  <div th:replace="fragments/bodyHeader :: bodyHeader"/>
+  <div>
+    <table class="table table-striped">
+      <thead>
+      <tr>
+        <th>#</th>
+        <th>상품명</th>
+        <th>가격</th>
+        <th>재고수량</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="item : ${items}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.name}"></td>
+        <td th:text="${item.price}"></td>
+        <td th:text="${item.stockQuantity}"></td>
+        <td>
+          <a href="#" th:href="@{/items/{id}/edit (id=${item.id})}"
+             class="btn btn-primary" role="button">수정</a>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+  <div th:replace="fragments/footer :: footer"/>
+</div> <!-- /container -->
+</body>
+</html>
+```
+
+- `Model`에 담아둔 상품 목록인 `items`를 꺼내서 상품 정보를 출력
+
+*실행*
+
+- 저장 화면
+
+![](img/img_17.png)
+
+- 목록 화면
+
+![](img/img_18.png)
